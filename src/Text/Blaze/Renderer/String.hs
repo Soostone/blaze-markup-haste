@@ -8,13 +8,8 @@ module Text.Blaze.Renderer.String
     , renderHtml
     ) where
 
-import Data.List (isInfixOf)
-
-import qualified Data.ByteString.Char8 as SBC
-import qualified Data.Text as T
-import qualified Data.ByteString as S
-
-import Text.Blaze.Internal
+import           Data.List           (isInfixOf)
+import           Text.Blaze.Internal
 
 -- | Escape predefined XML entities in a string
 --
@@ -37,17 +32,12 @@ fromChoiceString :: ChoiceString  -- ^ String to render
                  -> String        -- ^ Resulting string
 fromChoiceString (Static s)     = getString s
 fromChoiceString (String s)     = escapeMarkupEntities s
-fromChoiceString (Text s)       = escapeMarkupEntities $ T.unpack s
-fromChoiceString (ByteString s) = (SBC.unpack s ++)
 fromChoiceString (PreEscaped x) = case x of
     String s -> (s ++)
-    Text   s -> (\k -> T.foldr (:) k s)
     s        -> fromChoiceString s
 fromChoiceString (External x) = case x of
     -- Check that the sequence "</" is *not* in the external data.
     String s     -> if "</" `isInfixOf` s then id else (s ++)
-    Text   s     -> if "</" `T.isInfixOf` s then id else (\k -> T.foldr (:) k s)
-    ByteString s -> if "</" `S.isInfixOf` s then id else (SBC.unpack s ++)
     s            -> fromChoiceString s
 fromChoiceString (AppendChoiceString x y) =
     fromChoiceString x . fromChoiceString y
@@ -59,7 +49,7 @@ fromChoiceString EmptyChoiceString = id
 renderString :: Markup    -- ^ Markup to render
              -> String  -- ^ String to append
              -> String  -- ^ Resulting String
-renderString = go id 
+renderString = go id
   where
     go :: (String -> String) -> MarkupM b -> String -> String
     go attrs (Parent _ open close content) =

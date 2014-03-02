@@ -1,6 +1,9 @@
-{-# LANGUAGE OverloadedStrings, GeneralizedNewtypeDeriving, Rank2Types,
-             FlexibleInstances, ExistentialQuantification,
-             DeriveDataTypeable #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE ExistentialQuantification  #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE Rank2Types                 #-}
 -- | The BlazeMarkup core, consisting of functions that offer the power to
 -- generate custom markup elements. It also offers user-centric functions,
 -- which are exposed through 'Text.Blaze'.
@@ -27,28 +30,15 @@ module Text.Blaze.Internal
     , customAttribute
 
       -- * Converting values to Markup.
-    , text
-    , preEscapedText
-    , lazyText
-    , preEscapedLazyText
     , string
     , preEscapedString
-    , unsafeByteString
-    , unsafeLazyByteString
 
       -- * Converting values to tags.
-    , textTag
     , stringTag
 
       -- * Converting values to attribute values.
-    , textValue
-    , preEscapedTextValue
-    , lazyTextValue
-    , preEscapedLazyTextValue
     , stringValue
     , preEscapedStringValue
-    , unsafeByteStringValue
-    , unsafeLazyByteStringValue
 
       -- * Setting attributes
     , Attributable
@@ -60,33 +50,24 @@ module Text.Blaze.Internal
     , external
     ) where
 
-import Data.Monoid (Monoid, mappend, mempty, mconcat)
-import Unsafe.Coerce (unsafeCoerce)
-
-import Data.ByteString.Char8 (ByteString)
-import Data.Text (Text)
-import Data.Typeable (Typeable)
-import GHC.Exts (IsString (..))
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as BL
-import qualified Data.Text as T
-import qualified Data.Text.Encoding as T
-import qualified Data.Text.Lazy as LT
+-------------------------------------------------------------------------------
+import           Data.Monoid   (Monoid, mappend, mconcat, mempty)
+import           Data.Typeable (Typeable)
+import           GHC.Exts      (IsString (..))
+import           Unsafe.Coerce (unsafeCoerce)
+-------------------------------------------------------------------------------
 
 -- | A static string that supports efficient output to all possible backends.
 --
 data StaticString = StaticString
-    { getString         :: String -> String  -- ^ Appending haskell string
-    , getUtf8ByteString :: B.ByteString      -- ^ UTF-8 encoded bytestring
-    , getText           :: Text              -- ^ Text value
+    { getString :: String -> String  -- ^ Appending haskell string
     }
 
 -- 'StaticString's should only be converted from string literals, as far as I
 -- can see.
 --
 instance IsString StaticString where
-    fromString s = let t = T.pack s
-                   in StaticString (s ++) (T.encodeUtf8 t) t
+    fromString s = StaticString (s ++)
 
 -- | A string denoting input from different string representations.
 --
@@ -96,9 +77,9 @@ data ChoiceString
     -- | A Haskell String
     | String String
     -- | A Text value
-    | Text Text
+    | Text String
     -- | An encoded bytestring
-    | ByteString B.ByteString
+    | ByteString String
     -- | A pre-escaped string
     | PreEscaped ChoiceString
     -- | External data in style/script tags, should be checked for validity
@@ -251,33 +232,6 @@ customAttribute tag value = Attribute $ AddCustomAttribute
     (unAttributeValue value)
 {-# INLINE customAttribute #-}
 
--- | Render text. Functions like these can be used to supply content in HTML.
---
-text :: Text    -- ^ Text to render.
-     -> Markup  -- ^ Resulting HTML fragment.
-text = Content . Text
-{-# INLINE text #-}
-
--- | Render text without escaping.
---
-preEscapedText :: Text    -- ^ Text to insert
-               -> Markup  -- ^ Resulting HTML fragment
-preEscapedText = Content . PreEscaped . Text
-{-# INLINE preEscapedText #-}
-
--- | A variant of 'text' for lazy 'LT.Text'.
---
-lazyText :: LT.Text  -- ^ Text to insert
-         -> Markup   -- ^ Resulting HTML fragment
-lazyText = mconcat . map text . LT.toChunks
-{-# INLINE lazyText #-}
-
--- | A variant of 'preEscapedText' for lazy 'LT.Text'
---
-preEscapedLazyText :: LT.Text  -- ^ Text to insert
-                   -> Markup   -- ^ Resulting HTML fragment
-preEscapedLazyText = mconcat . map preEscapedText . LT.toChunks
-
 -- | Create an HTML snippet from a 'String'.
 --
 string :: String  -- ^ String to insert.
@@ -292,65 +246,11 @@ preEscapedString :: String  -- ^ String to insert.
 preEscapedString = Content . PreEscaped . String
 {-# INLINE preEscapedString #-}
 
--- | Insert a 'ByteString'. This is an unsafe operation:
---
--- * The 'ByteString' could have the wrong encoding.
---
--- * The 'ByteString' might contain illegal HTML characters (no escaping is
---   done).
---
-unsafeByteString :: ByteString  -- ^ Value to insert.
-                 -> Markup      -- ^ Resulting HTML fragment.
-unsafeByteString = Content . ByteString
-{-# INLINE unsafeByteString #-}
-
--- | Insert a lazy 'BL.ByteString'. See 'unsafeByteString' for reasons why this
--- is an unsafe operation.
---
-unsafeLazyByteString :: BL.ByteString  -- ^ Value to insert
-                     -> Markup         -- ^ Resulting HTML fragment
-unsafeLazyByteString = mconcat . map unsafeByteString . BL.toChunks
-{-# INLINE unsafeLazyByteString #-}
-
--- | Create a 'Tag' from some 'Text'.
---
-textTag :: Text  -- ^ Text to create a tag from
-        -> Tag   -- ^ Resulting tag
-textTag t = Tag $ StaticString (T.unpack t ++) (T.encodeUtf8 t) t
-
 -- | Create a 'Tag' from a 'String'.
 --
 stringTag :: String  -- ^ String to create a tag from
           -> Tag     -- ^ Resulting tag
 stringTag = Tag . fromString
-
--- | Render an attribute value from 'Text'.
---
-textValue :: Text            -- ^ The actual value.
-          -> AttributeValue  -- ^ Resulting attribute value.
-textValue = AttributeValue . Text
-{-# INLINE textValue #-}
-
--- | Render an attribute value from 'Text' without escaping.
---
-preEscapedTextValue :: Text            -- ^ The actual value
-                    -> AttributeValue  -- ^ Resulting attribute value
-preEscapedTextValue = AttributeValue . PreEscaped . Text
-{-# INLINE preEscapedTextValue #-}
-
--- | A variant of 'textValue' for lazy 'LT.Text'
---
-lazyTextValue :: LT.Text         -- ^ The actual value
-              -> AttributeValue  -- ^ Resulting attribute value
-lazyTextValue = mconcat . map textValue . LT.toChunks
-{-# INLINE lazyTextValue #-}
-
--- | A variant of 'preEscapedTextValue' for lazy 'LT.Text'
---
-preEscapedLazyTextValue :: LT.Text         -- ^ The actual value
-                        -> AttributeValue  -- ^ Resulting attribute value
-preEscapedLazyTextValue = mconcat . map preEscapedTextValue . LT.toChunks
-{-# INLINE preEscapedLazyTextValue #-}
 
 -- | Create an attribute value from a 'String'.
 --
@@ -363,22 +263,6 @@ stringValue = AttributeValue . String
 preEscapedStringValue :: String -> AttributeValue
 preEscapedStringValue = AttributeValue . PreEscaped . String
 {-# INLINE preEscapedStringValue #-}
-
--- | Create an attribute value from a 'ByteString'. See 'unsafeByteString'
--- for reasons why this might not be a good idea.
---
-unsafeByteStringValue :: ByteString      -- ^ ByteString value
-                      -> AttributeValue  -- ^ Resulting attribute value
-unsafeByteStringValue = AttributeValue . ByteString
-{-# INLINE unsafeByteStringValue #-}
-
--- | Create an attribute value from a lazy 'BL.ByteString'. See
--- 'unsafeByteString' for reasons why this might not be a good idea.
---
-unsafeLazyByteStringValue :: BL.ByteString   -- ^ ByteString value
-                          -> AttributeValue  -- ^ Resulting attribute value
-unsafeLazyByteStringValue = mconcat . map unsafeByteStringValue . BL.toChunks
-{-# INLINE unsafeLazyByteStringValue #-}
 
 -- | Used for applying attributes. You should not define your own instances of
 -- this class.

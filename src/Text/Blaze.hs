@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleInstances, TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 -- | BlazeMarkup is a markup combinator library. It provides a way to embed
 -- markup languages like HTML and SVG in Haskell in an efficient and convenient
 -- way, with a light-weight syntax.
@@ -46,17 +47,12 @@ module Text.Blaze
 
       -- * Converting values to Markup.
     , ToMarkup (..)
-    , unsafeByteString
-    , unsafeLazyByteString
 
       -- * Creating tags.
-    , textTag
     , stringTag
 
       -- * Converting values to attribute values.
     , ToValue (..)
-    , unsafeByteStringValue
-    , unsafeLazyByteStringValue
 
       -- * Setting attributes
     , (!)
@@ -66,14 +62,14 @@ module Text.Blaze
     , contents
     ) where
 
-import Data.Monoid (mconcat)
-import Data.Int (Int32, Int64)
-import Data.Word (Word, Word32, Word64)
+import           Data.Int            (Int32, Int64)
+import           Data.Monoid         (mconcat)
+import           Data.Word           (Word, Word32, Word64)
 
-import Data.Text (Text)
-import qualified Data.Text.Lazy as LT
 
-import Text.Blaze.Internal
+
+
+import           Text.Blaze.Internal
 
 -- | Class allowing us to use a single function for Markup values
 --
@@ -95,18 +91,6 @@ instance ToMarkup Markup where
 instance ToMarkup [Markup] where
     toMarkup = mconcat
     {-# INLINE toMarkup #-}
-
-instance ToMarkup Text where
-    toMarkup = text
-    {-# INLINE toMarkup #-}
-    preEscapedToMarkup = preEscapedText
-    {-# INLINE preEscapedToMarkup #-}
-
-instance ToMarkup LT.Text where
-    toMarkup = lazyText
-    {-# INLINE toMarkup #-}
-    preEscapedToMarkup = preEscapedLazyText
-    {-# INLINE preEscapedToMarkup #-}
 
 instance ToMarkup String where
     toMarkup = string
@@ -174,18 +158,6 @@ class ToValue a where
 instance ToValue AttributeValue where
     toValue = id
     {-# INLINE toValue #-}
-
-instance ToValue Text where
-    toValue = textValue
-    {-# INLINE toValue #-}
-    preEscapedToValue = preEscapedTextValue
-    {-# INLINE preEscapedToValue #-}
-
-instance ToValue LT.Text where
-    toValue = lazyTextValue
-    {-# INLINE toValue #-}
-    preEscapedToValue = preEscapedLazyTextValue
-    {-# INLINE preEscapedToValue #-}
 
 instance ToValue String where
     toValue = stringValue

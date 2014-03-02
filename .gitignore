@@ -4,6 +4,9 @@ local
 *.o
 *.hi
 *.swp
+*.jsmod
+*.js
+TAGS
 
 TestSuite.tix
 .hpc
