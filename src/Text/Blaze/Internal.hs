@@ -32,6 +32,7 @@ module Text.Blaze.Internal
       -- * Converting values to Markup.
     , string
     , preEscapedString
+    , preEscapedText
 
       -- * Converting values to tags.
     , stringTag
@@ -245,6 +246,8 @@ preEscapedString :: String  -- ^ String to insert.
                  -> Markup  -- ^ Resulting HTML fragment.
 preEscapedString = Content . PreEscaped . String
 {-# INLINE preEscapedString #-}
+
+preEscapedText = preEscapedString
 
 -- | Create a 'Tag' from a 'String'.
 --
